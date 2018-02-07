@@ -136,3 +136,28 @@ post '/stripe-webhook' do
   end
   status 200
 end
+
+post '/subscribe' do
+  authenticate!
+  # Get the credit card details submitted
+  payload = params
+  if request.content_type.include? 'application/json' and params.empty? 
+    payload = indifferent_params(JSON.parse(request.body.read))
+  end
+
+  customer = payload[:customer_id] || @customer.id
+  # Create the charge on Stripe's servers - this will charge the user's card
+  begin
+    subscription = Stripe::Subscription.create({
+      :customer => customer,
+      :items => [{plan: 'pro'}],
+    })
+  rescue Stripe::StripeError => e
+    status 402
+    return "Error creating charge: #{e.message}"
+  end
+
+  status 200
+  return "Charge successfully created"
+end
+
